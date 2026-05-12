@@ -1,0 +1,18 @@
+FROM alpine:3.20
+
+RUN apk add --no-cache openssh openssh-sftp-server netcat-openbsd busybox-extras curl docker-cli \
+ && ssh-keygen -A \
+ && echo 'root:testpassword' | chpasswd \
+ && sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config \
+ && sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config \
+ && sed -i 's|^#\?AuthorizedKeysFile.*|AuthorizedKeysFile .ssh/authorized_keys|' /etc/ssh/sshd_config \
+ && sed -i 's/^#\?GatewayPorts.*/GatewayPorts yes/' /etc/ssh/sshd_config \
+ && sed -i 's/^#\?AllowTcpForwarding.*/AllowTcpForwarding yes/' /etc/ssh/sshd_config \
+ && mkdir -p /root/.ssh /var/www \
+ && chmod 700 /root/.ssh \
+ && echo 'HELLO-FROM-IN-CONTAINER' > /var/www/marker.txt
+
+# Wrap sshd in a respawn loop so tests can kill it and watch auto-reconnect
+# without taking down the container (sshd would otherwise be PID 1).
+EXPOSE 22
+CMD ["sh", "-c", "/usr/sbin/httpd -p 8080 -h /var/www && while true; do /usr/sbin/sshd -D -e; sleep 1; done"]
