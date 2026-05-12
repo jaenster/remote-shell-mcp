@@ -87,7 +87,7 @@ func handleForwardLocal(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		_ = st.Persist()
-		return resultJSON(f.Info())
+		return st.resultJSON(f.Info())
 	}
 }
 
@@ -123,7 +123,7 @@ func handleForwardRemote(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		_ = st.Persist()
-		return resultJSON(f.Info())
+		return st.resultJSON(f.Info())
 	}
 }
 
@@ -153,7 +153,7 @@ func handleForwardDynamic(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		_ = st.Persist()
-		return resultJSON(f.Info())
+		return st.resultJSON(f.Info())
 	}
 }
 
@@ -164,7 +164,7 @@ func handleForwardList(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(list)
+		return st.resultJSON(list)
 	}
 }
 

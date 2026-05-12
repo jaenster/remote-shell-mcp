@@ -103,7 +103,7 @@ func handleFileList(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(entries)
+		return st.resultJSON(entries)
 	}
 }
 
@@ -125,7 +125,7 @@ func handleFileStat(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(info)
+		return st.resultJSON(info)
 	}
 }
 
@@ -151,9 +151,9 @@ func handleFileRead(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		if asBase64 {
-			return resultJSON(map[string]any{"bytes": len(data), "data_base64": base64.StdEncoding.EncodeToString(data)})
+			return st.resultJSON(map[string]any{"bytes": len(data), "data_base64": base64.StdEncoding.EncodeToString(data)})
 		}
-		return resultJSON(map[string]any{"bytes": len(data), "data": string(data)})
+		return st.resultJSON(map[string]any{"bytes": len(data), "data": string(data)})
 	}
 }
 
@@ -188,7 +188,7 @@ func handleFileWrite(st *State) server.ToolHandlerFunc {
 		if err := s.FileWrite(path, data, appendMode); err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(map[string]any{"bytes_written": len(data)})
+		return st.resultJSON(map[string]any{"bytes_written": len(data)})
 	}
 }
 
@@ -342,7 +342,7 @@ func handleUpload(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(map[string]any{"bytes": n})
+		return st.resultJSON(map[string]any{"bytes": n})
 	}
 }
 
@@ -368,6 +368,6 @@ func handleDownload(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(map[string]any{"bytes": n})
+		return st.resultJSON(map[string]any{"bytes": n})
 	}
 }

@@ -178,7 +178,7 @@ func handleDockerConnect(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		_ = st.Persist()
-		return resultJSON(h.Info())
+		return st.resultJSON(h.Info())
 	}
 }
 
@@ -198,7 +198,7 @@ func handleDockerDisconnect(st *State) server.ToolHandlerFunc {
 
 func handleDockerListHosts(st *State) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return resultJSON(st.Docker.List())
+		return st.resultJSON(st.Docker.List())
 	}
 }
 
@@ -223,7 +223,7 @@ func handleDockerContainers(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(list)
+		return st.resultJSON(list)
 	}
 }
 
@@ -245,7 +245,7 @@ func handleDockerInspect(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(insp)
+		return st.resultJSON(insp)
 	}
 }
 
@@ -421,7 +421,7 @@ func handleDockerImageList(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(out)
+		return st.resultJSON(out)
 	}
 }
 
@@ -443,7 +443,7 @@ func handleDockerImagePull(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(map[string]any{"image": ref, "status": status})
+		return st.resultJSON(map[string]any{"image": ref, "status": status})
 	}
 }
 
@@ -489,7 +489,7 @@ func handleDockerRun(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(res)
+		return st.resultJSON(res)
 	}
 }
 
@@ -510,6 +510,6 @@ func handleDockerExec(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(res)
+		return st.resultJSON(res)
 	}
 }

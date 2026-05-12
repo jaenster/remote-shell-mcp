@@ -88,7 +88,7 @@ func handleDockerShellOpen(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(sh.Info())
+		return st.resultJSON(sh.Info())
 	}
 }
 
@@ -118,7 +118,7 @@ func handleDockerShellWrite(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(map[string]any{"bytes_written": n})
+		return st.resultJSON(map[string]any{"bytes_written": n})
 	}
 }
 
@@ -143,9 +143,9 @@ func handleDockerShellRead(st *State) server.ToolHandlerFunc {
 		}
 		out, err := sh.Read(time.Duration(timeoutMs) * time.Millisecond)
 		if err != nil {
-			return resultJSON(map[string]any{"data": string(out), "eof": true})
+			return st.resultJSON(map[string]any{"data": string(out), "eof": true})
 		}
-		return resultJSON(map[string]any{"data": string(out), "eof": false})
+		return st.resultJSON(map[string]any{"data": string(out), "eof": false})
 	}
 }
 
@@ -214,12 +214,12 @@ func handleDockerShellList(st *State) server.ToolHandlerFunc {
 			for _, h := range st.Docker.Hosts() {
 				all = append(all, h.ListShells()...)
 			}
-			return resultJSON(all)
+			return st.resultJSON(all)
 		}
 		h, err := st.Docker.Get(hid)
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(h.ListShells())
+		return st.resultJSON(h.ListShells())
 	}
 }

@@ -32,7 +32,7 @@ func handleSnapshot(st *State) server.ToolHandlerFunc {
 		if st.Store != nil {
 			path = st.Store.Path()
 		}
-		return resultJSON(map[string]any{"saved": true, "path": path})
+		return st.resultJSON(map[string]any{"saved": true, "path": path})
 	}
 }
 
@@ -45,7 +45,7 @@ func handleStatus(st *State) server.ToolHandlerFunc {
 		if st.Store != nil {
 			path = st.Store.Path()
 		}
-		return resultJSON(map[string]any{
+		return st.resultJSON(map[string]any{
 			"uptime":         time.Since(startedAt).String(),
 			"ssh_sessions":   len(sshList),
 			"docker_hosts":   len(dkList),

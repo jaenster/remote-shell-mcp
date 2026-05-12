@@ -1601,6 +1601,52 @@ func TestConcurrentReconnects(t *testing.T) {
 	}
 }
 
+// TestTOONFormat starts the daemon with -format=toon (which is also the
+// production default) and confirms a tool result comes back as TOON text
+// rather than JSON. We don't try to parse TOON — just verify it's
+// shape-correct (an `items[N]{fields}:` header) and a few field tokens
+// appear, since the goal is to catch a regression where TOON encoding
+// silently falls back to JSON.
+func TestTOONFormat(t *testing.T) {
+	daemonBin, launcherBin := BuildBinaries(t)
+	if err := exec.Command("docker", "version").Run(); err != nil {
+		t.Skipf("docker not available: %v", err)
+	}
+	EnsureDockerImage(t)
+	sshd := StartSSHDContainer(t)
+	defer sshd.Stop()
+	daemon := StartDaemonWith(t, daemonBin, DaemonOpts{Format: "toon"})
+	defer daemon.Stop()
+
+	mc := NewMCPClientForDaemon(t, launcherBin, daemon)
+	defer mc.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	if _, err := mc.Call(ctx, "ssh_connect", map[string]any{"id": "tn", "spec": sshSpec(sshd.SSHPort)}); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	text, err := mc.CallText(ctx, "ssh_list", nil)
+	if err != nil {
+		t.Fatalf("ssh_list: %v", err)
+	}
+	// Negative check: JSON output would parse as JSON. TOON does not.
+	var any any
+	if err := json.Unmarshal([]byte(text), &any); err == nil {
+		t.Fatalf("expected TOON output, got valid JSON:\n%s", text)
+	}
+	// TOON list output looks like `[1]{…}:` for a single-element array;
+	// must contain the session id and state.
+	if !strings.Contains(text, "tn") || !strings.Contains(text, "connected") {
+		t.Fatalf("TOON output missing expected tokens:\n%s", text)
+	}
+	// And it should use the json-tagged field names (snake_case), not Go's
+	// PascalCase, which would happen if json tags were ignored.
+	if !strings.Contains(text, "state") || strings.Contains(text, "ActiveAddress") {
+		t.Fatalf("TOON output not using json-tag field names:\n%s", text)
+	}
+}
+
 func TestUnauthorizedRejected(t *testing.T) {
 	daemonBin, _ := BuildBinaries(t)
 	daemon := StartDaemon(t, daemonBin)
@@ -1683,6 +1729,9 @@ func TestLauncherAutoSpawnsDaemon(t *testing.T) {
 	cmd.Env = append(cmd.Environ(),
 		"REMOTE_SHELL_MCP_STATE="+stateDir+"/state.json",
 		"REMOTE_SHELL_MCP_LOCK="+stateDir+"/daemon.lock",
+		// Pin JSON so the JSON-unmarshalling assertion below stays valid
+		// even though TOON is the production default.
+		"REMOTE_SHELL_MCP_FORMAT=json",
 	)
 	stdin, _ := cmd.StdinPipe()
 	stdout, _ := cmd.StdoutPipe()

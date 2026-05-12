@@ -33,7 +33,14 @@ func main() {
 	lockPath := flag.String("lock", envOr("REMOTE_SHELL_MCP_LOCK", ""), "Path to daemon lock file.")
 	tokenPath := flag.String("token", envOr("REMOTE_SHELL_MCP_TOKEN", ""), "Path to the auth token file. Daemon writes a fresh random token here on startup.")
 	logFmt := flag.String("log", envOr("REMOTE_SHELL_MCP_LOG", "text"), "Log format: text or json.")
+	outFmt := flag.String("format", envOr("REMOTE_SHELL_MCP_FORMAT", "toon"), "Tool-result output format: toon (default) or json. TOON is ~30-50% smaller for arrays of uniform objects (docker_containers, ssh_file_list, etc.) — see https://github.com/toon-format/spec.")
 	flag.Parse()
+
+	format, err := mcptools.ParseFormat(*outFmt)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
 
 	defLock, defState, defToken, err := daemon.DefaultPaths()
 	if err != nil {
@@ -84,7 +91,7 @@ func main() {
 	}
 	sshMgr := sshx.NewManager()
 	dkMgr := dockerx.NewManager()
-	st := &mcptools.State{SSH: sshMgr, Docker: dkMgr, Store: store, Log: log}
+	st := &mcptools.State{SSH: sshMgr, Docker: dkMgr, Store: store, Log: log, Format: format}
 
 	if snap, err := store.Load(); err != nil {
 		log.Warn("load state", "err", err)
@@ -119,7 +126,7 @@ func main() {
 	errCh := make(chan error, 1)
 	go func() {
 		log.Info("listening", "addr", *addr, "sse", "/sse", "message", "/message",
-			"state", store.Path(), "token", *tokenPath)
+			"state", store.Path(), "token", *tokenPath, "format", string(format))
 		errCh <- httpSrv.ListenAndServe()
 	}()
 

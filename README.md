@@ -29,6 +29,7 @@ It runs as a daemon. Your MCP client talks to a tiny stdio launcher that auto-sp
 | **Persistence** | session and forward specs (no secrets) saved to `$XDG_CONFIG_HOME/remote-shell-mcp/state.json`; rehydrated on daemon startup |
 | **Auth** | 32-byte random Bearer token on the SSE endpoint, rotated each daemon restart, stored 0600 in the same config dir |
 | **Bridge** | launcher reconnects with exponential backoff if the daemon flaps; survives token rotation; parallel POST dispatch (up to 128 in flight) |
+| **Output** | [TOON](https://github.com/toon-format/toon) by default — compact, line-oriented format that's ~30–50% smaller than JSON for the uniform-array payloads this daemon returns (`docker_containers`, `ssh_file_list`, etc.). `-format json` reverts to JSON for clients that prefer it. |
 
 ## Install
 
@@ -119,6 +120,7 @@ The launcher takes no required flags. Environment overrides (also accepted as `-
 | `REMOTE_SHELL_MCP_STATE` | state file path (daemon-side) |
 | `REMOTE_SHELL_MCP_LOCK` | lock file path (daemon-side) |
 | `REMOTE_SHELL_MCP_TOKEN` | auth token file path (both sides) |
+| `REMOTE_SHELL_MCP_FORMAT` | tool result output: `toon` (default) or `json` |
 
 Defaults live in `$XDG_CONFIG_HOME/remote-shell-mcp/` (`~/.config/remote-shell-mcp/` on Linux, `~/Library/Application Support/remote-shell-mcp/` on macOS).
 

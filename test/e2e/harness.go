@@ -229,6 +229,7 @@ type DaemonOpts struct {
 	LockPath  string
 	TokenPath string
 	Env       []string
+	Format    string // override -format flag; empty = json (test default)
 }
 
 func StartDaemon(t *testing.T, daemonBin string) *Daemon {
@@ -258,7 +259,15 @@ func StartDaemonWith(t *testing.T, daemonBin string, opts DaemonOpts) *Daemon {
 		"-lock", opts.LockPath,
 		"-token", opts.TokenPath,
 		"-log", "text",
+		// The e2e suite parses tool responses as JSON. Pin the format
+		// regardless of the new daemon default so tests stay deterministic.
+		// A dedicated TestTOONFormat verifies the TOON path separately.
 	)
+	if opts.Format != "" {
+		cmd.Args = append(cmd.Args, "-format", opts.Format)
+	} else {
+		cmd.Args = append(cmd.Args, "-format", "json")
+	}
 	cmd.Env = append(os.Environ(), opts.Env...)
 	var stderr bytes.Buffer
 	cmd.Stdout = os.Stderr

@@ -94,7 +94,7 @@ func handleSSHConnect(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		_ = st.Persist()
-		return resultJSON(sess.Info())
+		return st.resultJSON(sess.Info())
 	}
 }
 
@@ -114,7 +114,7 @@ func handleSSHDisconnect(st *State) server.ToolHandlerFunc {
 
 func handleSSHList(st *State) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return resultJSON(st.SSH.List())
+		return st.resultJSON(st.SSH.List())
 	}
 }
 
@@ -128,7 +128,7 @@ func handleSSHInfo(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(s.Info())
+		return st.resultJSON(s.Info())
 	}
 }
 
@@ -142,7 +142,7 @@ func handleSSHReconnect(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(s.Info())
+		return st.resultJSON(s.Info())
 	}
 }
 
@@ -161,7 +161,7 @@ func handleSSHClone(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		_ = st.Persist()
-		return resultJSON(s.Info())
+		return st.resultJSON(s.Info())
 	}
 }
 
@@ -186,6 +186,6 @@ func handleSSHExec(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		return resultJSON(res)
+		return st.resultJSON(res)
 	}
 }
