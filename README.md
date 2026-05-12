@@ -16,6 +16,7 @@ It runs as a daemon. Your MCP client talks to a tiny stdio launcher that auto-sp
 
 ## Features
 
+| Area | What |
 |-|-|
 | **SSH** | named long-lived sessions, multi-address try-in-order, ProxyJump-style jump hosts, `ssh-agent`/key/password auth, keepalive + auto-reconnect with backoff, persistent across daemon restart, `ssh_clone` |
 | **Persistent shells** | full PTY, `cd` + env + `vim` survive between MCP calls, write/read/resize/close, parallel-safe writes |
@@ -70,6 +71,7 @@ remote-shell-mcp setup
 
 `remote-shell-mcp setup` detects supported clients and offers to add itself in each one's config. Currently:
 
+| Client | Config file |
 |-|-|
 | **Claude Code CLI** | `~/.claude.json` `mcpServers` block |
 | **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) / `%APPDATA%\Claude` (Windows) / `~/.config/Claude` (Linux) |
@@ -110,6 +112,7 @@ A stdio MCP server lives and dies with each client connection. That's fine for s
 
 The launcher takes no required flags. Environment overrides (also accepted as `-flags` on either binary):
 
+| Variable | Effect |
 |-|-|
 | `REMOTE_SHELL_MCP_ADDR` | daemon bind address (default `127.0.0.1:7800`) |
 | `REMOTE_SHELL_MCP_DAEMON` | path to the daemon binary (launcher) |
