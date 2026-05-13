@@ -58,8 +58,14 @@ jobs:
       - name: /rpc round trip via the CLI
         # Exercises the new /rpc endpoint: spawns the daemon, hits /rpc with
         # bearer auth, decodes the result. End-to-end check in one line.
+        # set +o pipefail because `tools | head` will SIGPIPE the writer
+        # (52 tools, head reads 3, writer dies on its 4th write) — which
+        # the runner's default `-o pipefail` would otherwise treat as a job
+        # failure. The piped reader exited 0; the SIGPIPE on the producer
+        # is expected and harmless.
         shell: bash
         run: |
+          set +o pipefail
           remote-shell-mcp version
           remote-shell-mcp tools | head -3
           remote-shell-mcp status
