@@ -12,6 +12,7 @@ All notable changes to remote-shell-mcp. Versions follow [Semantic Versioning](h
 - **`install-smoke` CI workflow.** Builds the binaries on ubuntu / macos / windows, runs `setup --yes`, then asserts `claude mcp list` actually sees `remote-shell` — and hits the new `/rpc` surface to close the loop.
 - **More MCP clients in `setup`:** Cursor (`~/.cursor/mcp.json`), Windsurf (`~/.codeium/windsurf/mcp_config.json`), Zed (`settings.json` under `context_servers`), Continue.dev (`~/.continue/config.json`; if only the YAML variant exists we skip with an error pointing at it). One-command install now wires us into seven clients.
 - **First batch of unit tests** for the new surfaces: daemon lock (exclusive, re-acquire after release, idempotent Release), `/rpc` (405 on GET, tools/list, tools/call, JSON-RPC parse errors, notification → 204, oversized body refused), and the CLI argument parser (all four httpie operators, identifier rules, JSON↔TOON transcoder).
+- **Cleaner `status` output.** Dropped redundant count fields (`ssh_sessions`, `docker_hosts`, the integer `forwards`) — TOON's tabular header `[N]{…}` already surfaces the count. Renamed `forwards_list` → `forwards` for naming consistency with `sessions` / `hosts`. Fixed `ListForwards` returning `nil` (→ JSON `null`) when no forwards are active; it now returns `[]` like the schema promises. 9 fields → 6, no lies-as-nulls.
 
 ## v0.1.5 — 2026-05-13
 
