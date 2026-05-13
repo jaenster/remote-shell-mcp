@@ -4,8 +4,12 @@ All notable changes to remote-shell-mcp. Versions follow [Semantic Versioning](h
 
 ## v0.1.6 — 2026-05-13
 
-- **Windows is a first-class target now.** Daemon lock split into `lock_unix.go` (flock) and `lock_windows.go` (`LockFileEx` with `LOCKFILE_FAIL_IMMEDIATELY` — the moral equivalent of `flock(LOCK_EX|LOCK_NB)`). Same "already-running → error" semantics either way.
+- **Windows is a first-class target now.** Daemon lock split into `lock_unix.go` (flock) and `lock_windows.go` (`LockFileEx` with `LOCKFILE_FAIL_IMMEDIATELY` — the moral equivalent of `flock(LOCK_EX|LOCK_NB)`). Same "already-running → error" semantics either way. Also fixed launcher's same-directory probe for the daemon binary to honor `.exe` on Windows (`exec.LookPath` already does this via PATHEXT, but a manual `os.Stat` does not).
 - **Release matrix expanded** to: darwin amd64 / arm64 / universal, linux amd64 / arm64 / armv7 / riscv64, windows amd64 / arm64, freebsd amd64 / arm64. Eleven archives per tag. `linux/armv7` covers Raspberry Pi 2/3/Zero 2; `darwin_universal` is a fat Mach-O so one tarball runs on both Intel and Apple Silicon Macs.
+- **`install.ps1`** mirrors `install.sh` for Windows: zip download with SHA-256 check, drops binaries into `%LOCALAPPDATA%\Programs\remote-shell-mcp`, adds them to the user PATH, runs `setup`. One-liner: `irm https://raw.githubusercontent.com/jaenster/remote-shell-mcp/main/install.ps1 | iex`.
+- **`POST /rpc` endpoint on the daemon** — single JSON-RPC request → single JSON-RPC response, no SSE bookkeeping. Same bearer auth as `/sse`/`/message`. Useful when an MCP host is wedged and you need to talk to the daemon directly.
+- **CLI mode on the launcher binary.** Run `remote-shell-mcp <tool> [key=value ...]` to invoke any MCP tool from the shell. Args use httpie typing: `key=string`, `key:=raw-json`, `key@=file-as-string`, `key:@=file-as-json`. `tools` lists them, `<tool> --help` prints the input schema. Output is the daemon's default format; `--json`/`--toon` transcode locally so piping to `jq` always works. Stdio-proxy mode (no args) is unchanged.
+- **`install-smoke` CI workflow.** Builds the binaries on ubuntu / macos / windows, runs `setup --yes`, then asserts `claude mcp list` actually sees `remote-shell` — and hits the new `/rpc` surface to close the loop.
 
 ## v0.1.5 — 2026-05-13
 
