@@ -417,7 +417,9 @@ func (m *Manager) ListForwards(sessionID string) ([]ForwardInfo, error) {
 	if sessionID == "" {
 		m.mu.RLock()
 		defer m.mu.RUnlock()
-		var out []ForwardInfo
+		// Empty slice (not nil) so JSON marshals to [] rather than null when
+		// there are no forwards. The schema says "list"; null is a lie.
+		out := []ForwardInfo{}
 		for _, s := range m.sessions {
 			s.forwardsMu.Lock()
 			for _, f := range s.forwards {

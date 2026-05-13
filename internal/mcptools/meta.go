@@ -20,7 +20,7 @@ func RegisterMeta(srv *server.MCPServer, st *State) {
 	), handleSnapshot(st))
 
 	srv.AddTool(mcp.NewTool("status",
-		mcp.WithDescription("Daemon status: counts, uptime, persistence path, goroutines."),
+		mcp.WithDescription("Daemon snapshot: uptime, persistence path, runtime stats, and the current ssh sessions / docker hosts / port forwards. Use it to check whether the daemon is alive and what state it's holding before running anything else."),
 	), handleStatus(st))
 }
 
@@ -49,6 +49,8 @@ func handleStatus(st *State) server.ToolHandlerFunc {
 			path = st.Store.Path()
 		}
 		// Project list contents into row-form so TOON renders compact tables.
+		// All three are explicit make-then-append so an empty result lands as
+		// `[0]:` (TOON) / `[]` (JSON), never null.
 		sessionRows := make([]sshx.SessionRow, 0, len(sshList))
 		for _, s := range sshList {
 			sessionRows = append(sessionRows, s.Row())
@@ -57,16 +59,16 @@ func handleStatus(st *State) server.ToolHandlerFunc {
 		for _, h := range dkList {
 			hostRows = append(hostRows, h.Row())
 		}
+		// Counts (`ssh_sessions`, `docker_hosts`, `forwards: <int>`) are
+		// derivable from the list lengths; the TOON tabular header even
+		// surfaces them as `[N]{...}`. Returning them again was just noise.
 		return st.resultJSON(map[string]any{
-			"uptime":        time.Since(startedAt).String(),
-			"ssh_sessions":  len(sshList),
-			"docker_hosts":  len(dkList),
-			"forwards":      len(fwds),
-			"goroutines":    runtime.NumGoroutine(),
-			"state_path":    path,
-			"sessions":      sessionRows,
-			"hosts":         hostRows,
-			"forwards_list": fwds,
+			"uptime":     time.Since(startedAt).String(),
+			"goroutines": runtime.NumGoroutine(),
+			"state_path": path,
+			"sessions":   sessionRows,
+			"hosts":      hostRows,
+			"forwards":   fwds,
 		})
 	}
 }
