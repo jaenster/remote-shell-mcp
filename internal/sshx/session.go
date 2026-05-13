@@ -5,12 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 type SessionState string
@@ -42,6 +46,14 @@ type Session struct {
 
 	sftpMu sync.Mutex
 	sftp   *sftp.Client
+
+	// Agent forwarding: when spec.ForwardAgent is true the daemon holds a
+	// connection to the local agent (1Password, ssh-agent, gpg-agent) and
+	// makes it available to the remote sshd via the standard SSH agent-
+	// forwarding channel. Sessions opened via Exec/OpenShell then request
+	// forwarding so the remote SSH_AUTH_SOCK points back here.
+	agentForwardOn   bool
+	agentForwardConn net.Conn
 
 	reconnectMu sync.Mutex // serializes attemptReconnect and Reconnect
 
@@ -101,9 +113,12 @@ func (s *Session) clearClient() {
 	sft := s.sftp
 	cli := s.client
 	jumps := s.jumpClients
+	agentConn := s.agentForwardConn
 	s.sftp = nil
 	s.client = nil
 	s.jumpClients = nil
+	s.agentForwardConn = nil
+	s.agentForwardOn = false
 	s.mu.Unlock()
 	s.sftpMu.Unlock()
 
@@ -116,6 +131,49 @@ func (s *Session) clearClient() {
 	for _, jc := range jumps {
 		_ = jc.Close()
 	}
+	if agentConn != nil {
+		_ = agentConn.Close()
+	}
+}
+
+// enableAgentForwarding wires the local ssh-agent (or 1Password / gpg-agent)
+// through to the remote sshd. Subsequent Exec/OpenShell calls on this session
+// will invoke RequestAgentForwarding on their channels so the remote's
+// SSH_AUTH_SOCK points back at the local agent.
+func (s *Session) enableAgentForwarding(socket string) error {
+	if socket == "" {
+		socket = os.Getenv("SSH_AUTH_SOCK")
+	}
+	if socket == "" {
+		return errors.New("agent forwarding requested but no agent socket available (set auth.agent_socket or $SSH_AUTH_SOCK)")
+	}
+	if strings.HasPrefix(socket, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			socket = home + socket[1:]
+		}
+	}
+	conn, err := net.Dial("unix", socket)
+	if err != nil {
+		return fmt.Errorf("dial agent for forwarding: %w", err)
+	}
+	s.mu.Lock()
+	cli := s.client
+	s.agentForwardConn = conn
+	s.agentForwardOn = true
+	s.mu.Unlock()
+	if cli == nil {
+		_ = conn.Close()
+		return errors.New("session has no active client")
+	}
+	if err := agent.ForwardToAgent(cli, agent.NewClient(conn)); err != nil {
+		_ = conn.Close()
+		s.mu.Lock()
+		s.agentForwardConn = nil
+		s.agentForwardOn = false
+		s.mu.Unlock()
+		return fmt.Errorf("ForwardToAgent: %w", err)
+	}
+	return nil
 }
 
 func (s *Session) close() {
@@ -217,6 +275,13 @@ func (s *Session) Exec(ctx context.Context, command string, opts ExecOptions) (*
 		return nil, fmt.Errorf("new ssh channel: %w", err)
 	}
 	defer sess.Close()
+
+	s.mu.RLock()
+	fwd := s.agentForwardOn
+	s.mu.RUnlock()
+	if fwd {
+		_ = agent.RequestAgentForwarding(sess)
+	}
 
 	for k, v := range opts.Env {
 		if err := sess.Setenv(k, v); err != nil {

@@ -66,6 +66,15 @@ func (m *Manager) Connect(id string, spec ConnectSpec) (*Session, error) {
 		return nil, errors.New("session was disconnected during connect")
 	}
 
+	if spec.ForwardAgent {
+		// Use the same agent the auth path used (or $SSH_AUTH_SOCK if the
+		// resolver didn't set one). Best-effort: a failure to wire up
+		// forwarding shouldn't kill the session; the error surfaces in
+		// the session's lastError via markState if the caller cares.
+		if err := sess.enableAgentForwarding(spec.Auth.AgentSocket); err != nil {
+			sess.markState(StateConnected, fmt.Errorf("agent forwarding: %w", err))
+		}
+	}
 	if spec.Keepalive.Std() > 0 || spec.AutoReconnect {
 		sess.startKeepalive()
 	}

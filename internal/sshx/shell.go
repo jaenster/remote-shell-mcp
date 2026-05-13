@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 type ShellOptions struct {
@@ -172,6 +173,12 @@ func (sess *Session) OpenShell(shellID string, opts ShellOptions) (*Shell, error
 		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
+	}
+	sess.mu.RLock()
+	fwd := sess.agentForwardOn
+	sess.mu.RUnlock()
+	if fwd {
+		_ = agent.RequestAgentForwarding(chSess)
 	}
 	if err := chSess.RequestPty(term, rows, cols, modes); err != nil {
 		_ = chSess.Close()
