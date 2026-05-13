@@ -3,13 +3,16 @@ module github.com/jaenster/remote-shell-mcp
 go 1.25.5
 
 require (
+	github.com/kevinburke/ssh_config v1.6.0
 	github.com/mark3labs/mcp-go v0.53.0
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.1
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/pkg/sftp v1.13.10
+	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c
 	golang.org/x/crypto v0.51.0
 	golang.org/x/net v0.54.0
+	golang.org/x/sys v0.44.0
 )
 
 require (
@@ -24,20 +27,17 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )

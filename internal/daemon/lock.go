@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"syscall"
 	"time"
 )
 
@@ -16,6 +15,9 @@ type Lock struct {
 	file *os.File
 }
 
+// AcquireLock takes an exclusive, non-blocking lock on path. The platform-
+// specific locking primitive lives in lock_unix.go (flock) / lock_windows.go
+// (LockFileEx) — same intent, same failure mode (already-held → error).
 func AcquireLock(path string) (*Lock, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("create lock dir: %w", err)
@@ -24,7 +26,7 @@ func AcquireLock(path string) (*Lock, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open lock file: %w", err)
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := acquireLockHandle(f); err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("daemon already running (lock held on %s)", path)
 	}
@@ -43,7 +45,7 @@ func (l *Lock) Release() {
 	if l == nil || l.file == nil {
 		return
 	}
-	_ = syscall.Flock(int(l.file.Fd()), syscall.LOCK_UN)
+	_ = releaseLockHandle(l.file)
 	_ = l.file.Close()
 	_ = os.Remove(l.path)
 }

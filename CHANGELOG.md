@@ -2,6 +2,11 @@
 
 All notable changes to remote-shell-mcp. Versions follow [Semantic Versioning](https://semver.org/).
 
+## v0.1.6 — 2026-05-13
+
+- **Windows is a first-class target now.** Daemon lock split into `lock_unix.go` (flock) and `lock_windows.go` (`LockFileEx` with `LOCKFILE_FAIL_IMMEDIATELY` — the moral equivalent of `flock(LOCK_EX|LOCK_NB)`). Same "already-running → error" semantics either way.
+- **Release matrix expanded** to: darwin amd64 / arm64 / universal, linux amd64 / arm64 / armv7 / riscv64, windows amd64 / arm64, freebsd amd64 / arm64. Eleven archives per tag. `linux/armv7` covers Raspberry Pi 2/3/Zero 2; `darwin_universal` is a fat Mach-O so one tarball runs on both Intel and Apple Silicon Macs.
+
 ## v0.1.5 — 2026-05-13
 
 - **TOON list output is now compact-tabular.** `ssh_list`, `status.sessions`, `status.hosts`, `docker_list_hosts`, `docker_containers`, and `docker_image_list` project into primitive-only "row" types so TOON renders them as `[N]{fields}: row,row,...` instead of expanded per-element form. ~5× smaller output for `docker_containers` against a busy host. Detailed nested info still available via `ssh_info` and `docker_container_inspect`.

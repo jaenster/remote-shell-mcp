@@ -12,8 +12,24 @@ builds:
     binary: remote-shell-mcpd
     env:
       - CGO_ENABLED=0
-    goos: [darwin, linux]
-    goarch: [amd64, arm64]
+    goos: [darwin, linux, windows, freebsd]
+    goarch: [amd64, arm64, arm, riscv64]
+    goarm: ["7"]
+    ignore:
+      # 32-bit ARM is a Linux-only audience for us; Pi 2/3/Zero-2.
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: arm
+      - goos: freebsd
+        goarch: arm
+      # riscv64 is Linux-only in practice (no Windows/macOS support).
+      - goos: darwin
+        goarch: riscv64
+      - goos: windows
+        goarch: riscv64
+      - goos: freebsd
+        goarch: riscv64
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -23,21 +39,55 @@ builds:
     binary: remote-shell-mcp
     env:
       - CGO_ENABLED=0
-    goos: [darwin, linux]
-    goarch: [amd64, arm64]
+    goos: [darwin, linux, windows, freebsd]
+    goarch: [amd64, arm64, arm, riscv64]
+    goarm: ["7"]
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: arm
+      - goos: freebsd
+        goarch: arm
+      - goos: darwin
+        goarch: riscv64
+      - goos: windows
+        goarch: riscv64
+      - goos: freebsd
+        goarch: riscv64
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
+
+# Combined amd64+arm64 Mach-O so a single tarball runs on any modern Mac.
+universal_binaries:
+  - id: daemon-universal
+    ids: [daemon]
+    name_template: remote-shell-mcpd
+    replace: false
+  - id: launcher-universal
+    ids: [launcher]
+    name_template: remote-shell-mcp
+    replace: false
 
 archives:
   - id: default
     ids: [daemon, launcher]
     name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}
     formats: [tar.gz]
     format_overrides:
       - goos: windows
         formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+
+  - id: universal
+    ids: [daemon-universal, launcher-universal]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_darwin_universal
+    formats: [tar.gz]
     files:
       - LICENSE
       - README.md
