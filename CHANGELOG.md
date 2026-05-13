@@ -10,6 +10,8 @@ All notable changes to remote-shell-mcp. Versions follow [Semantic Versioning](h
 - **`POST /rpc` endpoint on the daemon** — single JSON-RPC request → single JSON-RPC response, no SSE bookkeeping. Same bearer auth as `/sse`/`/message`. Useful when an MCP host is wedged and you need to talk to the daemon directly.
 - **CLI mode on the launcher binary.** Run `remote-shell-mcp <tool> [key=value ...]` to invoke any MCP tool from the shell. Args use httpie typing: `key=string`, `key:=raw-json`, `key@=file-as-string`, `key:@=file-as-json`. `tools` lists them, `<tool> --help` prints the input schema. Output is the daemon's default format; `--json`/`--toon` transcode locally so piping to `jq` always works. Stdio-proxy mode (no args) is unchanged.
 - **`install-smoke` CI workflow.** Builds the binaries on ubuntu / macos / windows, runs `setup --yes`, then asserts `claude mcp list` actually sees `remote-shell` — and hits the new `/rpc` surface to close the loop.
+- **More MCP clients in `setup`:** Cursor (`~/.cursor/mcp.json`), Windsurf (`~/.codeium/windsurf/mcp_config.json`), Zed (`settings.json` under `context_servers`), Continue.dev (`~/.continue/config.json`; if only the YAML variant exists we skip with an error pointing at it). One-command install now wires us into seven clients.
+- **First batch of unit tests** for the new surfaces: daemon lock (exclusive, re-acquire after release, idempotent Release), `/rpc` (405 on GET, tools/list, tools/call, JSON-RPC parse errors, notification → 204, oversized body refused), and the CLI argument parser (all four httpie operators, identifier rules, JSON↔TOON transcoder).
 
 ## v0.1.5 — 2026-05-13
 
