@@ -111,7 +111,12 @@ func main() {
 		server.WithKeepAlive(true),
 		server.WithKeepAliveInterval(15*time.Second),
 	)
-	authed := daemon.AuthMiddleware(token, sseServer)
+	// /rpc is a one-shot JSON-RPC endpoint for the CLI; /sse + /message stay
+	// for the stdio proxy. Both sit behind the same bearer-auth middleware.
+	mux := http.NewServeMux()
+	mux.Handle("/rpc", daemon.RPCHandler(mcpServer))
+	mux.Handle("/", sseServer)
+	authed := daemon.AuthMiddleware(token, mux)
 	httpSrv := &http.Server{
 		Addr:    *addr,
 		Handler: authed,
@@ -125,7 +130,7 @@ func main() {
 
 	errCh := make(chan error, 1)
 	go func() {
-		log.Info("listening", "addr", *addr, "sse", "/sse", "message", "/message",
+		log.Info("listening", "addr", *addr, "sse", "/sse", "message", "/message", "rpc", "/rpc",
 			"state", store.Path(), "token", *tokenPath, "format", string(format))
 		errCh <- httpSrv.ListenAndServe()
 	}()

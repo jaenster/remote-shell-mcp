@@ -17,16 +17,29 @@ import (
 )
 
 func main() {
-	// Subcommand dispatch — `setup` registers this binary with detected MCP
-	// clients. Anything else (or no subcommand) runs the stdio proxy as
-	// before, so the MCP client invoking us just sees the JSON-RPC stream.
-	if len(os.Args) > 1 && os.Args[1] == "setup" {
-		runSetup(os.Args[2:])
-		return
-	}
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Println("remote-shell-mcp", version)
-		return
+	// Subcommand dispatch. The hierarchy:
+	//   - `setup` / `version`: built-in subcommands.
+	//   - First arg is `--help` / `-h`: print CLI usage and exit.
+	//   - First arg starts with a letter (i.e., a positional, not a `-flag`):
+	//     treat it as an MCP tool name and run the one-shot CLI against the
+	//     daemon's /rpc endpoint.
+	//   - Anything else (no args, or `-flag` style options): stdio proxy mode,
+	//     so MCP hosts that exec us with no args get the JSON-RPC stream.
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "setup":
+			runSetup(os.Args[2:])
+			return
+		case "version":
+			fmt.Println("remote-shell-mcp", version)
+			return
+		case "--help", "-h", "help":
+			printCLIUsage()
+			return
+		}
+		if first := os.Args[1]; len(first) > 0 && first[0] != '-' {
+			os.Exit(runCLI(first, os.Args[2:]))
+		}
 	}
 
 	addr := flag.String("addr", envOr("REMOTE_SHELL_MCP_ADDR", "127.0.0.1:7800"), "Daemon SSE address (host:port).")
