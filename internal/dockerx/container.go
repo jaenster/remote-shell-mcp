@@ -28,14 +28,16 @@ type ContainerSummary struct {
 // ContainerRow is the primitive-only projection used by docker_containers so
 // the tool's response stays in TOON's compact tabular form. The trade-off:
 // ports collapse to a single comma-joined string and labels are dropped (use
-// docker_container_inspect for full detail).
+// docker_container_inspect for full detail). No `omitempty` here — TOON's
+// tabular form requires every row to have the same field set, so we keep
+// empty strings instead of omitting fields.
 type ContainerRow struct {
 	ID     string `json:"id"`     // shortened to 12 hex chars
 	Name   string `json:"name"`   // first name, leading slash stripped
 	Image  string `json:"image"`
 	State  string `json:"state"`
 	Status string `json:"status"`
-	Ports  string `json:"ports,omitempty"` // e.g. "0.0.0.0:80->80/tcp,0.0.0.0:443->443/tcp"
+	Ports  string `json:"ports"` // e.g. "0.0.0.0:80->80/tcp,0.0.0.0:443->443/tcp"
 }
 
 func (c ContainerSummary) Row() ContainerRow {

@@ -1,8 +1,13 @@
 # remote-shell-mcp
 
-**Persistent SSH and Docker for your LLM, over MCP. Open the connection once; sessions, port forwards, and shells survive across client restarts.**
+[![Latest release](https://img.shields.io/github/v/release/jaenster/remote-shell-mcp?logo=github&label=release&color=blue)](https://github.com/jaenster/remote-shell-mcp/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/jaenster/remote-shell-mcp/test.yml?branch=main&label=tests)](https://github.com/jaenster/remote-shell-mcp/actions/workflows/test.yml)
+[![License](https://img.shields.io/github/license/jaenster/remote-shell-mcp?color=informational)](LICENSE)
+[![Go](https://img.shields.io/github/go-mod/go-version/jaenster/remote-shell-mcp?logo=go)](go.mod)
 
-`remote-shell-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server that gives any MCP client (Claude Code, Claude Desktop, Cursor, …) a real toolbox for working on remote machines and containers — `ssh_exec`, persistent PTY shells with state preserved between calls, `-L`/`-R`/`-D` port forwards, SFTP round-trips, Docker over `unix://`, `tcp://`, or `ssh://`, container lifecycle, image pulls, and `docker_run`.
+**Persistent SSH, SFTP, port forwarding, and Docker over the [Model Context Protocol](https://modelcontextprotocol.io). Open the connection once — sessions, tunnels, and PTY shells survive across Claude Code / Claude Desktop / Cursor / Codex CLI restarts.**
+
+`remote-shell-mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server that gives any MCP client (Claude Code, Claude Desktop, Cursor, OpenAI's Codex CLI, …) a real toolbox for working on remote machines and containers — `ssh_exec`, persistent PTY shells with state preserved between calls, `-L`/`-R`/`-D` port forwards, SFTP round-trips, Docker over `unix://`, `tcp://`, or `ssh://`, container lifecycle, image pulls, and `docker_run`.
 
 It runs as a daemon. Your MCP client talks to a tiny stdio launcher that auto-spawns the daemon on first use and proxies over SSE. The daemon outlives every client restart, every Claude Code reload, every "did the bridge just hang up?" — so the `vim` you opened over a PTY, the SOCKS proxy you set up to reach a database, the keepalive on a flaky link, all keep running.
 

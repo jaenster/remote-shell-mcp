@@ -41,7 +41,7 @@ type HostRow struct {
 	ID         string `json:"id"`
 	Host       string `json:"host"`
 	State      string `json:"state"`
-	LastError  string `json:"last_error,omitempty"`
+	LastError  string `json:"last_error"` // empty when none; kept for tabular-form uniformity
 	Persistent bool   `json:"persistent"`
 	Shells     int    `json:"shells"`
 }

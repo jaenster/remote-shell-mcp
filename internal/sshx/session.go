@@ -262,9 +262,9 @@ type SessionInfo struct {
 type SessionRow struct {
 	ID            string `json:"id"`
 	User          string `json:"user"`
-	Address       string `json:"address"`         // active_address, else addresses[0]
+	Address       string `json:"address"` // active_address, else addresses[0]
 	State         string `json:"state"`
-	LastError     string `json:"last_error,omitempty"`
+	LastError     string `json:"last_error"` // empty when none; kept (no omitempty) so tabular form stays uniform
 	Persistent    bool   `json:"persistent"`
 	AutoReconnect bool   `json:"auto_reconnect"`
 	Forwards      int    `json:"forwards"`
