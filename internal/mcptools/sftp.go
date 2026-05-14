@@ -2,7 +2,6 @@ package mcptools
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"os"
 	"strconv"
@@ -26,20 +25,18 @@ func RegisterSFTP(srv *server.MCPServer, st *State) {
 	), handleFileStat(st))
 
 	srv.AddTool(mcp.NewTool("ssh_file_read",
-		mcp.WithDescription("Read a remote file. By default returns the contents as text; set base64=true for binary."),
+		mcp.WithDescription("Read a remote text file. Returns up to 64 MiB of UTF-8 content. For binary blobs or anything large, use ssh_download to stream to disk instead — round-tripping bytes through this tool is wasteful and breaks on non-UTF-8 data."),
 		mcp.WithString("session_id", mcp.Required()),
 		mcp.WithString("path", mcp.Required()),
 		mcp.WithNumber("offset", mcp.Description("Byte offset to start reading from (default 0).")),
-		mcp.WithNumber("length", mcp.Description("Max bytes to read (default: full file).")),
-		mcp.WithBoolean("base64", mcp.Description("Return base64-encoded data instead of text.")),
+		mcp.WithNumber("length", mcp.Description("Max bytes to read (default: full file, capped at 64 MiB).")),
 	), handleFileRead(st))
 
 	srv.AddTool(mcp.NewTool("ssh_file_write",
-		mcp.WithDescription("Write a remote file. Pass EITHER `data` (text) OR `data_base64` (binary) — not both. Overwrites by default; set append=true to append."),
+		mcp.WithDescription("Write text content to a remote file. For binary content or anything larger than a few KiB, use ssh_upload to stream from a local file — embedding payloads in this argument inflates the JSON-RPC message (and trips MCP size limits)."),
 		mcp.WithString("session_id", mcp.Required()),
 		mcp.WithString("path", mcp.Required()),
-		mcp.WithString("data", mcp.Description("Text content to write.")),
-		mcp.WithString("data_base64", mcp.Description("Base64-encoded binary content.")),
+		mcp.WithString("data", mcp.Required(), mcp.Description("Text content to write.")),
 		mcp.WithBoolean("append", mcp.Description("Append rather than truncate the existing file (default false).")),
 	), handleFileWrite(st))
 
@@ -71,17 +68,17 @@ func RegisterSFTP(srv *server.MCPServer, st *State) {
 	), handleFileRename(st))
 
 	srv.AddTool(mcp.NewTool("ssh_upload",
-		mcp.WithDescription("Upload a file from the local filesystem (where the daemon runs) to the remote host."),
+		mcp.WithDescription("Stream a local file OR directory (where the daemon runs) to the remote host via SFTP. Directories are mirrored recursively; intermediate dirs are created; file permissions are preserved best-effort; symlinks are skipped. This is the right tool for any non-trivial data transfer — it streams over the SSH channel without serializing bytes into the MCP message."),
 		mcp.WithString("session_id", mcp.Required()),
-		mcp.WithString("local_path", mcp.Required()),
-		mcp.WithString("remote_path", mcp.Required()),
+		mcp.WithString("local_path", mcp.Required(), mcp.Description("Path on the daemon's filesystem; can be a file or a directory.")),
+		mcp.WithString("remote_path", mcp.Required(), mcp.Description("Destination path on the remote host. When local_path is a directory, this becomes the remote root for the mirrored tree.")),
 	), handleUpload(st))
 
 	srv.AddTool(mcp.NewTool("ssh_download",
-		mcp.WithDescription("Download a remote file to the local filesystem (where the daemon runs)."),
+		mcp.WithDescription("Stream a remote file OR directory to the local filesystem (where the daemon runs) via SFTP. Directories are mirrored recursively; intermediate dirs are created; symlinks are skipped. Use this instead of ssh_file_read whenever the payload is binary or larger than a few KiB."),
 		mcp.WithString("session_id", mcp.Required()),
-		mcp.WithString("remote_path", mcp.Required()),
-		mcp.WithString("local_path", mcp.Required()),
+		mcp.WithString("remote_path", mcp.Required(), mcp.Description("Path on the remote host; can be a file or a directory.")),
+		mcp.WithString("local_path", mcp.Required(), mcp.Description("Destination path on the daemon's filesystem. When remote_path is a directory, this becomes the local root for the mirrored tree.")),
 	), handleDownload(st))
 }
 
@@ -141,7 +138,6 @@ func handleFileRead(st *State) server.ToolHandlerFunc {
 		}
 		offset := int64(req.GetInt("offset", 0))
 		length := int64(req.GetInt("length", 0))
-		asBase64 := req.GetBool("base64", false)
 		s, err := st.SSH.Get(sid)
 		if err != nil {
 			return resultErr(err)
@@ -149,9 +145,6 @@ func handleFileRead(st *State) server.ToolHandlerFunc {
 		data, err := s.FileRead(path, offset, length)
 		if err != nil {
 			return resultErr(err)
-		}
-		if asBase64 {
-			return st.resultJSON(map[string]any{"bytes": len(data), "data_base64": base64.StdEncoding.EncodeToString(data)})
 		}
 		return st.resultJSON(map[string]any{"bytes": len(data), "data": string(data)})
 	}
@@ -167,25 +160,16 @@ func handleFileWrite(st *State) server.ToolHandlerFunc {
 		if err != nil {
 			return resultErr(err)
 		}
-		text := req.GetString("data", "")
-		b64 := req.GetString("data_base64", "")
-		if text != "" && b64 != "" {
-			return resultErr(errors.New("provide either `data` (text) or `data_base64` (binary), not both"))
-		}
-		data := []byte(text)
-		if b64 != "" {
-			decoded, err := base64.StdEncoding.DecodeString(b64)
-			if err != nil {
-				return resultErr(err)
-			}
-			data = decoded
+		data, err := req.RequireString("data")
+		if err != nil {
+			return resultErr(err)
 		}
 		appendMode := req.GetBool("append", false)
 		s, err := st.SSH.Get(sid)
 		if err != nil {
 			return resultErr(err)
 		}
-		if err := s.FileWrite(path, data, appendMode); err != nil {
+		if err := s.FileWrite(path, []byte(data), appendMode); err != nil {
 			return resultErr(err)
 		}
 		return st.resultJSON(map[string]any{"bytes_written": len(data)})

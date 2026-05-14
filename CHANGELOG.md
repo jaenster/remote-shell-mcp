@@ -2,6 +2,13 @@
 
 All notable changes to remote-shell-mcp. Versions follow [Semantic Versioning](https://semver.org/).
 
+## v0.1.8 — 2026-05-14
+
+- **`ssh_upload` / `ssh_download` now handle directories.** Pass a directory as the source and the tree is mirrored recursively at the destination — intermediate dirs created, file permissions preserved best-effort, symlinks skipped. Single-file behavior is unchanged. No base64, no buffering into the MCP message; bytes stream over the SSH channel via SFTP.
+- **New `docker_upload` / `docker_download` tools.** Symmetric to the SSH versions, but the bytes go over the Docker engine's archive API (tar streams), not the SSH channel. Handles files or directories. Use these instead of routing payloads through `docker_exec` stdin/stdout — much faster for anything non-trivial and doesn't blow up the MCP message size.
+- **Dropped the base64 paths from `ssh_file_write` / `ssh_file_read`.** `ssh_file_write` now takes `data` (text) only; `ssh_file_read`'s `base64=true` option is gone. The tools were a footgun for LLMs that would default to base64 for any binary, inflating bytes 33% and tripping JSON-RPC size limits. Descriptions now explicitly point at `ssh_upload` / `ssh_download` for binary or large content.
+- **`REMOTE_SHELL_MCP_HANDLE` env var works in CLI mode too.** Was previously stdio-only. Tests and scripts that pin a sandboxed daemon path no longer need a separate `-handle` flag plumbing — just set the env.
+
 ## v0.1.7 — 2026-05-13
 
 - **Daemon now picks a free port at startup** instead of hard-coding `127.0.0.1:7800`. The previous default was JGroups' well-known port (used by JBoss/Wildfly clustering) and could clash with anything from a local game server to a Cassandra dev cluster — symptom was a launcher that couldn't connect because something else already owned 7800. Daemon binds `127.0.0.1:0`, the kernel hands back a free port, and the actual `host:port` is written into `daemon.json` along with the bearer token and PID. The launcher reads the handle to know where to connect — no port assumptions on either side. `--addr` is still respected if you want to pin a specific port.

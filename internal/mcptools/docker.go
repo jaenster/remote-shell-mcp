@@ -162,6 +162,22 @@ func RegisterDocker(srv *server.MCPServer, st *State) {
 		mcp.WithString("stdin", mcp.Description("Data piped to the command's stdin.")),
 		mcp.WithNumber("timeout_ms", mcp.Description("Override the 30s default. Capped at 1h. On expiry the exec gets force-killed.")),
 	), handleDockerExec(st))
+
+	srv.AddTool(mcp.NewTool("docker_upload",
+		mcp.WithDescription("Stream a local file OR directory (where the daemon runs) into a container at remote_path. Directories are mirrored recursively; symlinks are skipped; permissions are preserved best-effort. Uses the Docker archive API (tar over the engine connection) — no base64, nothing buffered into MCP messages. Use this for any non-trivial data transfer instead of routing bytes through docker_exec stdin."),
+		mcp.WithString("host_id", mcp.Required()),
+		mcp.WithString("container", mcp.Required(), mcp.Description("Container id or name.")),
+		mcp.WithString("local_path", mcp.Required(), mcp.Description("Path on the daemon's filesystem; can be a file or a directory.")),
+		mcp.WithString("remote_path", mcp.Required(), mcp.Description("Destination path inside the container. Files land at the exact path; directories become the root of the mirrored tree.")),
+	), handleDockerUpload(st))
+
+	srv.AddTool(mcp.NewTool("docker_download",
+		mcp.WithDescription("Stream a file OR directory out of a container to the local filesystem (where the daemon runs). Directories are mirrored recursively; symlinks are skipped. Uses the Docker archive API (tar). Prefer this over routing bytes through docker_exec stdout."),
+		mcp.WithString("host_id", mcp.Required()),
+		mcp.WithString("container", mcp.Required(), mcp.Description("Container id or name.")),
+		mcp.WithString("remote_path", mcp.Required(), mcp.Description("Path inside the container; can be a file or a directory.")),
+		mcp.WithString("local_path", mcp.Required(), mcp.Description("Destination path on the daemon's filesystem. Files become the file contents; directories become the local root of the mirrored tree.")),
+	), handleDockerDownload(st))
 }
 
 type dockerConnectArgs struct {
@@ -529,5 +545,65 @@ func handleDockerExec(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		return st.resultJSON(res)
+	}
+}
+
+func handleDockerUpload(st *State) server.ToolHandlerFunc {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		hostID, err := req.RequireString("host_id")
+		if err != nil {
+			return resultErr(err)
+		}
+		container, err := req.RequireString("container")
+		if err != nil {
+			return resultErr(err)
+		}
+		local, err := req.RequireString("local_path")
+		if err != nil {
+			return resultErr(err)
+		}
+		remote, err := req.RequireString("remote_path")
+		if err != nil {
+			return resultErr(err)
+		}
+		h, err := st.Docker.Get(hostID)
+		if err != nil {
+			return resultErr(err)
+		}
+		n, err := h.Upload(ctx, container, local, remote)
+		if err != nil {
+			return resultErr(err)
+		}
+		return st.resultJSON(map[string]any{"bytes": n})
+	}
+}
+
+func handleDockerDownload(st *State) server.ToolHandlerFunc {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		hostID, err := req.RequireString("host_id")
+		if err != nil {
+			return resultErr(err)
+		}
+		container, err := req.RequireString("container")
+		if err != nil {
+			return resultErr(err)
+		}
+		remote, err := req.RequireString("remote_path")
+		if err != nil {
+			return resultErr(err)
+		}
+		local, err := req.RequireString("local_path")
+		if err != nil {
+			return resultErr(err)
+		}
+		h, err := st.Docker.Get(hostID)
+		if err != nil {
+			return resultErr(err)
+		}
+		n, err := h.Download(ctx, container, remote, local)
+		if err != nil {
+			return resultErr(err)
+		}
+		return st.resultJSON(map[string]any{"bytes": n})
 	}
 }

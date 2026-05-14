@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -189,35 +191,133 @@ func (s *Session) FileRename(from, to string) error {
 	return c.Rename(from, to)
 }
 
+// Upload streams a local file OR directory to the remote host over SFTP. For a
+// directory, the tree is mirrored under remotePath with intermediate dirs
+// created as needed; permission bits are preserved on a best-effort basis.
+// Symlinks are skipped (not followed, not recreated) to avoid escaping the
+// source tree via a hostile or accidental local link.
 func (s *Session) Upload(localPath, remotePath string) (int64, error) {
 	c, err := s.sftpClient()
 	if err != nil {
 		return 0, err
 	}
-	in, err := os.Open(localPath)
+	info, err := os.Lstat(localPath)
 	if err != nil {
 		return 0, err
 	}
-	defer in.Close()
-	out, err := c.Create(remotePath)
-	if err != nil {
+	if !info.IsDir() {
+		return uploadFile(c, localPath, remotePath, info.Mode())
+	}
+	if err := c.MkdirAll(remotePath); err != nil {
 		return 0, err
 	}
-	defer out.Close()
-	return io.Copy(out, in)
+	var total int64
+	walkErr := filepath.Walk(localPath, func(p string, fi os.FileInfo, werr error) error {
+		if werr != nil {
+			return werr
+		}
+		rel, rerr := filepath.Rel(localPath, p)
+		if rerr != nil {
+			return rerr
+		}
+		rel = filepath.ToSlash(rel)
+		rem := remotePath
+		if rel != "." {
+			rem = path.Join(remotePath, rel)
+		}
+		switch {
+		case fi.Mode()&os.ModeSymlink != 0:
+			return nil
+		case fi.IsDir():
+			return c.MkdirAll(rem)
+		default:
+			n, ferr := uploadFile(c, p, rem, fi.Mode())
+			total += n
+			return ferr
+		}
+	})
+	return total, walkErr
 }
 
+// Download streams a remote file OR directory from the remote host over SFTP
+// to the local filesystem. For a directory, the tree is mirrored under
+// localPath with intermediate dirs created as needed. Symlinks are skipped.
 func (s *Session) Download(remotePath, localPath string) (int64, error) {
 	c, err := s.sftpClient()
 	if err != nil {
 		return 0, err
 	}
-	in, err := c.Open(remotePath)
+	info, err := c.Lstat(remotePath)
+	if err != nil {
+		return 0, err
+	}
+	if !info.IsDir() {
+		return downloadFile(c, remotePath, localPath)
+	}
+	if err := os.MkdirAll(localPath, 0o755); err != nil {
+		return 0, err
+	}
+	var total int64
+	walker := c.Walk(remotePath)
+	for walker.Step() {
+		if werr := walker.Err(); werr != nil {
+			return total, werr
+		}
+		st := walker.Stat()
+		rel := strings.TrimPrefix(walker.Path(), remotePath)
+		rel = strings.TrimPrefix(rel, "/")
+		loc := localPath
+		if rel != "" {
+			loc = filepath.Join(localPath, filepath.FromSlash(rel))
+		}
+		switch {
+		case st.Mode()&os.ModeSymlink != 0:
+			continue
+		case st.IsDir():
+			if err := os.MkdirAll(loc, 0o755); err != nil {
+				return total, err
+			}
+		default:
+			n, ferr := downloadFile(c, walker.Path(), loc)
+			total += n
+			if ferr != nil {
+				return total, ferr
+			}
+		}
+	}
+	return total, nil
+}
+
+func uploadFile(c *sftp.Client, local, remote string, mode os.FileMode) (int64, error) {
+	in, err := os.Open(local)
 	if err != nil {
 		return 0, err
 	}
 	defer in.Close()
-	out, err := os.Create(localPath)
+	out, err := c.Create(remote)
+	if err != nil {
+		return 0, err
+	}
+	defer out.Close()
+	n, err := io.Copy(out, in)
+	if err != nil {
+		return n, err
+	}
+	// Best-effort permission preservation.
+	_ = c.Chmod(remote, mode.Perm())
+	return n, nil
+}
+
+func downloadFile(c *sftp.Client, remote, local string) (int64, error) {
+	if dir := filepath.Dir(local); dir != "." && dir != "" {
+		_ = os.MkdirAll(dir, 0o755)
+	}
+	in, err := c.Open(remote)
+	if err != nil {
+		return 0, err
+	}
+	defer in.Close()
+	out, err := os.Create(local)
 	if err != nil {
 		return 0, err
 	}

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -232,8 +233,8 @@ func waitForContainerHTTP(t *testing.T, sshd *SSHDContainer) {
 }
 
 // TestSFTPFullCoverage exercises the SFTP tool surface that TestSFTP doesn't —
-// chmod, mkdir, delete, rename, upload, download, stat, and the
-// data/data_base64 conflict guard on ssh_file_write.
+// chmod, mkdir, delete, rename, upload, download (incl. directory recursion),
+// and stat.
 func TestSFTPFullCoverage(t *testing.T) {
 	mc, sshd, _, teardown := setupSession(t)
 	defer teardown()
@@ -323,15 +324,50 @@ func TestSFTPFullCoverage(t *testing.T) {
 		t.Fatalf("delete: %v", err)
 	}
 
-	// ambiguous write should now be rejected — tool returns IsError=true,
-	// which CallText surfaces as a Go error.
-	if _, err := mc.CallText(ctx, "ssh_file_write", map[string]any{
+	// Directory round-trip: build a small local tree, upload it as a directory,
+	// then download it back to a fresh dir. Confirms the recursive walk plus
+	// remote MkdirAll + file streaming + ToSlash handling all line up.
+	treeRoot := filepath.Join(localDir, "tree")
+	for rel, body := range map[string]string{
+		"a.txt":         "alpha",
+		"sub/b.txt":     "bravo",
+		"sub/deep/c.go": "package x",
+	} {
+		full := filepath.Join(treeRoot, rel)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := mc.Call(ctx, "ssh_upload", map[string]any{
 		"session_id":  "f1",
-		"path":        "/tmp/e2e-sftp/conflict.bin",
-		"data":        "text",
-		"data_base64": "dGV4dA==",
-	}); err == nil {
-		t.Fatalf("expected ssh_file_write to reject both data and data_base64 set")
+		"local_path":  treeRoot,
+		"remote_path": "/tmp/e2e-sftp/tree-up",
+	}); err != nil {
+		t.Fatalf("upload dir: %v", err)
+	}
+	downRoot := filepath.Join(localDir, "tree-down")
+	if _, err := mc.Call(ctx, "ssh_download", map[string]any{
+		"session_id":  "f1",
+		"remote_path": "/tmp/e2e-sftp/tree-up",
+		"local_path":  downRoot,
+	}); err != nil {
+		t.Fatalf("download dir: %v", err)
+	}
+	for rel, want := range map[string]string{
+		"a.txt":         "alpha",
+		"sub/b.txt":     "bravo",
+		"sub/deep/c.go": "package x",
+	} {
+		got, err := os.ReadFile(filepath.Join(downRoot, rel))
+		if err != nil {
+			t.Fatalf("read %s after dir round-trip: %v", rel, err)
+		}
+		if string(got) != want {
+			t.Fatalf("%s: got %q want %q", rel, got, want)
+		}
 	}
 }
 

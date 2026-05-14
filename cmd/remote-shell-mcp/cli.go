@@ -15,6 +15,7 @@ import (
 
 	toon "github.com/toon-format/toon-go"
 
+	"github.com/jaenster/remote-shell-mcp/internal/daemon"
 	"github.com/jaenster/remote-shell-mcp/internal/launcher"
 )
 
@@ -61,7 +62,17 @@ func runCLI(toolName string, args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	handle, err := launcher.EnsureDaemon(os.Getenv("REMOTE_SHELL_MCP_DAEMON"), nil)
+	daemonBin := os.Getenv("REMOTE_SHELL_MCP_DAEMON")
+	hp := os.Getenv("REMOTE_SHELL_MCP_HANDLE")
+	var (
+		handle daemon.Handle
+		err    error
+	)
+	if hp != "" {
+		handle, err = launcher.EnsureDaemonAt(hp, daemonBin, nil)
+	} else {
+		handle, err = launcher.EnsureDaemon(daemonBin, nil)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ensure daemon:", err)
 		return 1
