@@ -31,6 +31,8 @@ It runs as a daemon. Your MCP client talks to a tiny stdio launcher that auto-sp
 | **Containers** | list / inspect / start / stop / restart / kill / remove / logs, `docker_exec`, `docker_run` with image/cmd/env/ports/volumes/labels and optional auto-pull |
 | **Container shells** | persistent TTY shells inside containers, same model as SSH shells |
 | **Images** | `docker_image_list`, `docker_image_pull` (blocks until done), `docker_image_remove` |
+| **Networks** | `docker_network_inspect` — full network object incl. IPAM config and attached containers |
+| **Volumes** | `docker_volume_inspect` — full volume object incl. mountpoint on the host |
 | **Persistence** | session and forward specs (no secrets) saved to `$XDG_CONFIG_HOME/remote-shell-mcp/state.json`; rehydrated on daemon startup |
 | **Auth** | 32-byte random Bearer token on the SSE endpoint, rotated each daemon restart, stored 0600 in the same config dir |
 | **Bridge** | launcher reconnects with exponential backoff if the daemon flaps; survives token rotation; parallel POST dispatch (up to 128 in flight) |

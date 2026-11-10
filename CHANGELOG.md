@@ -2,6 +2,10 @@
 
 All notable changes to remote-shell-mcp. Versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+- **New `docker_network_inspect` / `docker_volume_inspect` tools.** Returns the Docker engine's network and volume objects verbatim — driver, scope, IPAM config (subnets, IP ranges, gateways), labels, driver options, the containers attached to a network, and a volume's mountpoint on the host. Inspect is useful on its own, against resources that already exist: the default `bridge`/`host` networks, a Compose-created network, or a volume declared by someone else's `docker run -v`. The companion resource-management tools (`docker_network_list` / `_create` / `_remove` and the volume equivalents) are tracked separately — see issue #2.
+
 ## v0.1.8 — 2026-05-14
 
 - **`ssh_upload` / `ssh_download` now handle directories.** Pass a directory as the source and the tree is mirrored recursively at the destination — intermediate dirs created, file permissions preserved best-effort, symlinks skipped. Single-file behavior is unchanged. No base64, no buffering into the MCP message; bytes stream over the SSH channel via SFTP.
