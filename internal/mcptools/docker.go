@@ -123,6 +123,18 @@ func RegisterDocker(srv *server.MCPServer, st *State) {
 		mcp.WithBoolean("prune_children", mcp.Description("Also remove dangling parent layers.")),
 	), handleDockerImageRemove(st))
 
+	srv.AddTool(mcp.NewTool("docker_network_inspect",
+		mcp.WithDescription("Inspect a Docker network. Returns the full network object: driver, scope, IPAM config (subnets, ip ranges, gateways), labels, driver options, and the containers currently attached to it."),
+		mcp.WithString("host_id", mcp.Required()),
+		mcp.WithString("network", mcp.Required(), mcp.Description("Network name or id.")),
+	), handleDockerNetworkInspect(st))
+
+	srv.AddTool(mcp.NewTool("docker_volume_inspect",
+		mcp.WithDescription("Inspect a Docker volume. Returns the full volume object: driver, mountpoint on the host, scope, labels, and driver options."),
+		mcp.WithString("host_id", mcp.Required()),
+		mcp.WithString("volume", mcp.Required(), mcp.Description("Volume name or id.")),
+	), handleDockerVolumeInspect(st))
+
 	srv.AddTool(mcp.NewTool("docker_run",
 		mcp.WithDescription("Create and start a container — the MCP equivalent of `docker run -d`. Returns the new container id. Use docker_container_logs / docker_shell_open to attach. Set pull_if_missing=true to auto-pull the image if it's not local."),
 		mcp.WithString("host_id", mcp.Required()),
@@ -269,6 +281,50 @@ func handleDockerInspect(st *State) server.ToolHandlerFunc {
 			return resultErr(err)
 		}
 		insp, err := h.Inspect(ctx, c)
+		if err != nil {
+			return resultErr(err)
+		}
+		return st.resultJSON(insp)
+	}
+}
+
+func handleDockerNetworkInspect(st *State) server.ToolHandlerFunc {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		hid, err := req.RequireString("host_id")
+		if err != nil {
+			return resultErr(err)
+		}
+		n, err := req.RequireString("network")
+		if err != nil {
+			return resultErr(err)
+		}
+		h, err := st.Docker.Get(hid)
+		if err != nil {
+			return resultErr(err)
+		}
+		insp, err := h.InspectNetwork(ctx, n)
+		if err != nil {
+			return resultErr(err)
+		}
+		return st.resultJSON(insp)
+	}
+}
+
+func handleDockerVolumeInspect(st *State) server.ToolHandlerFunc {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		hid, err := req.RequireString("host_id")
+		if err != nil {
+			return resultErr(err)
+		}
+		v, err := req.RequireString("volume")
+		if err != nil {
+			return resultErr(err)
+		}
+		h, err := st.Docker.Get(hid)
+		if err != nil {
+			return resultErr(err)
+		}
+		insp, err := h.InspectVolume(ctx, v)
 		if err != nil {
 			return resultErr(err)
 		}
